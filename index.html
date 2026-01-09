@@ -12,14 +12,22 @@
       <div class="logo">🔢</div>
       <div>
         <div class="title">幼兒數學練習</div>
-        <div class="subtitle">中大班｜大按鈕｜不重複題目｜各自進度</div>
+        <div class="subtitle">中大班｜大按鈕｜不重複題目｜集星星換貼紙｜家長區</div>
       </div>
     </div>
 
-    <div class="childBox">
-      <label for="childSelect">小朋友：</label>
-      <select id="childSelect"></select>
-      <button id="resetBtn" class="btn btn-ghost" title="清空這位小朋友的紀錄">清空紀錄</button>
+    <div class="rightTools">
+      <div class="starPill" title="答對會獲得星星，可去換貼紙">
+        ⭐ 星星：<span id="stars">0</span>
+      </div>
+      <button id="stickersBtn" class="btn btn-ghost btn-small">🎁 貼紙</button>
+      <button id="parentBtn" class="btn btn-ghost btn-small">📊 家長區</button>
+
+      <div class="childBox">
+        <label for="childSelect">小朋友：</label>
+        <select id="childSelect"></select>
+        <button id="resetBtn" class="btn btn-ghost btn-small" title="清空這位小朋友的紀錄">清空</button>
+      </div>
     </div>
   </header>
 
@@ -41,7 +49,6 @@
 
       <div class="card">
         <div id="questionArea" class="questionArea"></div>
-
         <div id="choicesArea" class="choices"></div>
 
         <div class="actions">
@@ -53,10 +60,55 @@
       </div>
 
       <div class="footnote">
-        小提醒：答對會自動進下一題；答錯會顯示提示，按「下一題」再前進。
+        答對會自動下一題；答錯會提示，按「下一題」再前進。星星可以去「貼紙」兌換喔！
       </div>
     </section>
   </main>
+
+  <!-- 🎁 貼紙商店 -->
+  <div id="stickersModal" class="modal" aria-hidden="true">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <div class="modalTitle">🎁 貼紙小店</div>
+        <button id="closeStickers" class="iconBtn" aria-label="close">✖</button>
+      </div>
+      <div class="modalSub">用星星換貼紙，收集在「我的貼紙」</div>
+
+      <div class="modalSplit">
+        <div>
+          <div class="sectionTitle">可兌換</div>
+          <div id="shopList" class="shopGrid"></div>
+        </div>
+        <div>
+          <div class="sectionTitle">我的貼紙</div>
+          <div id="ownedList" class="ownedBox"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📊 家長區 -->
+  <div id="parentModal" class="modal" aria-hidden="true">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <div class="modalTitle">📊 家長區</div>
+        <button id="closeParent" class="iconBtn" aria-label="close">✖</button>
+      </div>
+      <div class="modalSub">看各題型命中率、常錯題（依小朋友分開記錄）</div>
+
+      <div class="parentGrid">
+        <div class="parentCard">
+          <div class="sectionTitle">各題型命中率</div>
+          <div id="accuracyTable" class="tableLike"></div>
+        </div>
+        <div class="parentCard">
+          <div class="sectionTitle">常錯題 TOP 10</div>
+          <div id="wrongTop" class="wrongList"></div>
+          <div class="tinyHint">提示：常錯題是依「題目 ID」累計；會顯示題目文字方便你帶著複習。</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <footer class="footer">
     <span>Made for kids • GitHub Pages</span>
@@ -65,4 +117,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
