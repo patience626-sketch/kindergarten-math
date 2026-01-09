@@ -1,14 +1,13 @@
-// kids math v6
-// ✅ 不使用 q.makeChoices（避免函式遺失造成崩潰）
-// ✅ 題目物件只有純資料：kind / prompt / answer / id / hour
-// ✅ 選項統一由 getChoices(q) 產生 → 永遠四選一
+// kids math v7
+// ✅ 全題型四選一：加法/減法/比大小/數點點/看時鐘
+// ✅ 比大小：點點/數字/撲克牌點數 全部左右對照版
+// ✅ 不使用 makeChoices（避免函式遺失造成崩潰）
 // ✅ localStorage 只存：used / stats / perf / wrongBank / stickers
-// ✅ 啟動時移除舊版可能造成爆炸的 key（v3/v4/v5）
+// ✅ 啟動時移除舊版 key（避免舊資料干擾）
 
 const CHILDREN = ["西瓜", "柚子", "小樂", "阿噗", "安安"];
-const STORAGE_KEY = "kids_math_v6";
-
-const LEGACY_KEYS = ["kids_math_v3", "kids_math_v4", "kids_math_v5"];
+const STORAGE_KEY = "kids_math_v7";
+const LEGACY_KEYS = ["kids_math_v3", "kids_math_v4", "kids_math_v5", "kids_math_v6"];
 
 const STICKERS = [
   { id: "st_heart", emoji: "💖", name: "愛心貼", cost: 6 },
@@ -91,9 +90,7 @@ function ensureChild(all, child) {
   all[child].perf ||= blankChildData().perf;
   all[child].wrongBank ||= {};
   all[child].stickers ||= {};
-
-  // 防呆：如果舊版有存 pools 或其他怪東西，一律移除
-  if (all[child].pools) delete all[child].pools;
+  if (all[child].pools) delete all[child].pools; // 防舊版殘留
   return all[child];
 }
 function getChildData() {
@@ -172,24 +169,39 @@ function buildPools() {
     });
   }
 
-  // compare: number + dots
+  // compare: 三種題面（點點 / 數字 / 撲克牌）全部左右對照
   for (let a = 0; a <= 10; a++) for (let b = 0; b <= 10; b++) {
+    // 數字
     pools.compare.push({
       id: `cmp_num_${a}_${b}`,
-      kind: "compare",
-      prompt: `比大小：${a} 和 ${b}\n誰比較大？`,
+      kind: "compareNumLR",
+      leftValue: a,
+      rightValue: b,
+      prompt: "比大小：誰比較大？",
       answer: cmpAnswerText(a, b),
       hint: "一樣大就選「一樣大」。",
     });
 
-    const L = a === 0 ? "（沒有點點）" : "●".repeat(a);
-    const R = b === 0 ? "（沒有點點）" : "●".repeat(b);
+    // 點點
     pools.compare.push({
       id: `cmp_dot_${a}_${b}`,
-      kind: "compare",
-      prompt: `比大小：\n${L}\n和\n${R}\n誰比較多？`,
+      kind: "compareDotsLR",
+      leftCount: a,
+      rightCount: b,
+      prompt: "比大小：誰比較多？",
       answer: cmpAnswerText(a, b),
-      hint: "先數左邊、再數右邊。",
+      hint: "先數左邊、再數右邊；一樣多選「一樣大」。",
+    });
+
+    // 撲克牌點數（用 ♠ + 數字）
+    pools.compare.push({
+      id: `cmp_card_${a}_${b}`,
+      kind: "compareCardLR",
+      leftValue: a,
+      rightValue: b,
+      prompt: "比大小：點數誰比較大？",
+      answer: cmpAnswerText(a, b),
+      hint: "看點數大小；一樣就選「一樣大」。",
     });
   }
 
@@ -221,13 +233,65 @@ function buildPools() {
 }
 const POOLS = buildPools();
 
-// ✅ 任何來源的題目（就算是舊資料）都用這個產生四選項
+// ✅ 所有題型的四選項集中管理
 function getChoices(q, mode) {
   if (mode === "compare") return CMP_CHOICES.slice();
-  if (mode === "clock") return makeClockChoices(Number(q.answer) || Number(q.hour) || 1);
-  // add / sub / count 一律 0~10 的數字選項
+
+  // 🕒 看時鐘：選項顯示成「X 點」
+  if (mode === "clock") {
+    return makeClockChoices(Number(q.answer) || Number(q.hour) || 1)
+      .map(h => `${h} 點`);
+  }
+
+  // ➕➖➗ 數字題型
   const ans = Number(q.answer);
   return makeNumberChoices(isFinite(ans) ? ans : 0, 0, 10);
+}
+
+// ---------------- render compare (左/右對照) ----------------
+function renderCompareLR(q) {
+  // 左欄內容 / 右欄內容
+  let leftHTML = "";
+  let rightHTML = "";
+
+  if (q.kind === "compareDotsLR") {
+    const L = q.leftCount === 0 ? "（沒有點點）" : "● ".repeat(q.leftCount).trim();
+    const R = q.rightCount === 0 ? "（沒有點點）" : "● ".repeat(q.rightCount).trim();
+    leftHTML = `<div class="lrBig">${escapeHtml(L)}</div>`;
+    rightHTML = `<div class="lrBig">${escapeHtml(R)}</div>`;
+  } else if (q.kind === "compareNumLR") {
+    leftHTML = `<div class="lrNum">${q.leftValue}</div>`;
+    rightHTML = `<div class="lrNum">${q.rightValue}</div>`;
+  } else if (q.kind === "compareCardLR") {
+    // ♠0 看起來怪，給 0 特例顯示成 ♠0（你也可以改成空牌）
+    leftHTML = `<div class="lrCard">♠${q.leftValue}</div>`;
+    rightHTML = `<div class="lrCard">♠${q.rightValue}</div>`;
+  } else {
+    // fallback
+    leftHTML = `<div class="lrNum">?</div>`;
+    rightHTML = `<div class="lrNum">?</div>`;
+  }
+
+  // 用內嵌 style 避免你還要改 CSS（但也保留 class 方便你之後美化）
+  els.questionArea.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:12px; width:100%; align-items:center;">
+      <div style="font-weight:900; font-size:32px;">比大小：</div>
+
+      <div style="display:flex; width:100%; gap:16px; align-items:stretch; justify-content:center;">
+        <div style="flex:1; display:flex; align-items:center; justify-content:center; border:1px solid #e5e7eb; border-radius:16px; padding:14px; background:#fff;">
+          ${leftHTML}
+        </div>
+
+        <div style="width:1px; background:#e5e7eb;"></div>
+
+        <div style="flex:1; display:flex; align-items:center; justify-content:center; border:1px solid #e5e7eb; border-radius:16px; padding:14px; background:#fff;">
+          ${rightHTML}
+        </div>
+      </div>
+
+      <div style="font-weight:900; font-size:26px;">${escapeHtml(q.prompt.replace("比大小：", ""))}</div>
+    </div>
+  `;
 }
 
 // ---------------- quiz flow ----------------
@@ -283,11 +347,13 @@ function newQuestion() {
         <div class="clockHint">（整點）長針在 12</div>
       </div>
     `;
+  } else if (state.mode === "compare") {
+    renderCompareLR(q);
   } else {
     els.questionArea.innerHTML = escapeHtml(q.prompt).replace(/\n/g, "<br>");
   }
 
-  // ✅ 選項區：永遠四選一（不再呼叫 makeChoices）
+  // 選項區：永遠四選一
   let choices = getChoices(q, state.mode);
   while (choices.length < 4) choices.push("我不確定");
   if (choices.length > 4) choices = choices.slice(0, 4);
@@ -307,7 +373,14 @@ function submitAnswer(choice) {
   const q = state.currentQ;
   if (!q) return;
 
-  const isCorrect = String(choice) === String(q.answer);
+  let userValue = choice;
+
+// 時鐘題：把「X 點」轉回數字 X
+if (state.mode === "clock") {
+  userValue = parseInt(String(choice).replace("點", ""), 10);
+}
+
+const isCorrect = String(userValue) === String(q.answer);
 
   markUsed(q);
   recordAttempt({ correct: isCorrect, q });
@@ -509,10 +582,7 @@ function escapeHtml(str) {
 
 // ---------------- init ----------------
 function cleanLegacyKeysOnce() {
-  // 只清舊 key（避免舊版 pools/函式遺失害你一直炸）
-  LEGACY_KEYS.forEach(k => {
-    try { localStorage.removeItem(k); } catch {}
-  });
+  LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch {} });
 }
 
 function initChildSelect() {
