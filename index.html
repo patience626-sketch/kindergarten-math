@@ -1,1 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>幼兒數學練習</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🔢</div>
+      <div>
+        <div class="title">幼兒數學練習</div>
+        <div class="subtitle">中大班｜大按鈕｜不重複題目｜各自進度</div>
+      </div>
+    </div>
+
+    <div class="childBox">
+      <label for="childSelect">小朋友：</label>
+      <select id="childSelect"></select>
+      <button id="resetBtn" class="btn btn-ghost" title="清空這位小朋友的紀錄">清空紀錄</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <div class="modes">
+        <button class="mode active" data-mode="add">➕ 10以內加法</button>
+        <button class="mode" data-mode="sub">➖ 10以內減法</button>
+        <button class="mode" data-mode="compare">⚖️ 比大小</button>
+        <button class="mode" data-mode="count">🟣 數點點</button>
+        <button class="mode" data-mode="clock">🕒 看時鐘（整點）</button>
+      </div>
+
+      <div class="scoreRow">
+        <div class="pill">⭐ 連續答對：<span id="streak">0</span></div>
+        <div class="pill">✅ 答對：<span id="correct">0</span></div>
+        <div class="pill">❌ 答錯：<span id="wrong">0</span></div>
+      </div>
+
+      <div class="card">
+        <div id="questionArea" class="questionArea"></div>
+
+        <div id="choicesArea" class="choices"></div>
+
+        <div class="actions">
+          <button id="nextBtn" class="btn btn-primary">下一題</button>
+          <button id="skipBtn" class="btn btn-ghost">跳過</button>
+        </div>
+
+        <div id="feedback" class="feedback" aria-live="polite"></div>
+      </div>
+
+      <div class="footnote">
+        小提醒：答對會自動進下一題；答錯會顯示提示，按「下一題」再前進。
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Made for kids • GitHub Pages</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
 
