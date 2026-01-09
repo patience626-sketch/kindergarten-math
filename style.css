@@ -31,6 +31,19 @@ html,body{ margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-sy
 .title{ font-weight:800; font-size:18px; }
 .subtitle{ color:var(--muted); font-size:12px; margin-top:2px; }
 
+.rightTools{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+}
+
+.starPill{
+  background: #fff7d6;
+  border:1px solid #f2d68a;
+  border-radius:999px;
+  padding:8px 12px;
+  font-weight:900;
+  font-size:14px;
+}
+
 .childBox{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
 .childBox label{ color:var(--muted); font-size:14px; }
 select{
@@ -152,6 +165,12 @@ select{
 .btn-ghost{
   background:#fff;
 }
+.btn-small{
+  padding:10px 12px;
+  font-size:14px;
+  min-width:auto;
+  border-radius:14px;
+}
 
 .feedback{
   margin-top:12px;
@@ -182,7 +201,7 @@ select{
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:14px;
+  gap:10px;
   flex-direction:column;
 }
 .clockHint{
@@ -191,3 +210,177 @@ select{
   font-weight:700;
 }
 
+/* Modal */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(17,24,39,0.35);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:50;
+}
+.modal.show{ display:flex; }
+.modalCard{
+  width:min(980px, 100%);
+  background:#fff;
+  border-radius:22px;
+  border:1px solid var(--line);
+  box-shadow:0 18px 60px rgba(31,42,55,0.2);
+  padding:16px;
+}
+.modalHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.modalTitle{ font-size:18px; font-weight:900; }
+.modalSub{ color:var(--muted); font-weight:700; font-size:13px; margin-top:4px; margin-bottom:12px; }
+.iconBtn{
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:12px;
+  padding:10px 12px;
+  cursor:pointer;
+  font-weight:900;
+}
+
+.sectionTitle{
+  font-weight:900;
+  margin:10px 0 8px;
+}
+
+.modalSplit{
+  display:grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap:14px;
+}
+@media (max-width: 860px){
+  .modalSplit{ grid-template-columns: 1fr; }
+}
+
+.shopGrid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap:10px;
+}
+@media (max-width: 700px){
+  .shopGrid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+.shopItem{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px;
+  background:linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.shopEmoji{ font-size:34px; }
+.shopName{ font-weight:900; }
+.shopCost{ color:var(--muted); font-weight:800; font-size:13px; }
+.shopItem button{
+  margin-top:6px;
+  width:100%;
+  border-radius:16px;
+  padding:10px 12px;
+  font-weight:900;
+  border:1px solid var(--line);
+  background:#fff;
+  cursor:pointer;
+}
+.shopItem button.primary{
+  background:var(--primary);
+  color:#fff;
+  border-color:transparent;
+}
+.shopItem button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.ownedBox{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px;
+  min-height:140px;
+  background: #fbfbfe;
+}
+.ownedItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 6px;
+  border-bottom:1px dashed var(--line);
+}
+.ownedItem:last-child{ border-bottom:none; }
+.ownedLeft{ display:flex; align-items:center; gap:10px; }
+.ownedEmoji{ font-size:26px; }
+.ownedCount{ font-weight:900; }
+
+/* Parent area */
+.parentGrid{
+  display:grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap:14px;
+}
+@media (max-width: 860px){
+  .parentGrid{ grid-template-columns: 1fr; }
+}
+.parentCard{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px;
+  background:#fff;
+}
+.tableLike .row{
+  display:grid;
+  grid-template-columns: 1fr 0.7fr 0.7fr;
+  gap:10px;
+  padding:10px 8px;
+  border-bottom:1px solid var(--line);
+  align-items:center;
+}
+.tableLike .row.head{
+  background:var(--soft);
+  border-radius:14px;
+  border-bottom:none;
+  font-weight:900;
+  margin-bottom:8px;
+}
+.badge{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:999px;
+  background:var(--primarySoft);
+  font-weight:900;
+  text-align:center;
+}
+.wrongList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.wrongItem{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:10px 10px;
+  background:#fff;
+}
+.wrongMeta{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  color:var(--muted);
+  font-weight:800;
+  font-size:12px;
+  margin-top:6px;
+}
+.tinyHint{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
