@@ -4,7 +4,7 @@
 // ✅ 答對自動下一題；答錯顯示提示，按下一題才前進
 // ✅ 星星換貼紙（貼紙商店 & 收藏）
 // ✅ 家長區：各題型命中率、常錯題 TOP10
-// ✅ 比大小增加「=」與等量題
+// ✅ 比大小：改成「四選一」(左大/右大/一樣大/我不確定)
 
 const CHILDREN = ["西瓜", "柚子", "小樂", "阿噗", "安安"]; // 你可自行改
 
@@ -26,6 +26,14 @@ const MODE_LABEL = {
   count: "數點點",
   clock: "看時鐘",
 };
+
+// ✅ 比大小：四選一文案（中大班更直覺）
+const CMP_CHOICES = ["左邊比較大", "右邊比較大", "一樣大", "我不確定"];
+function cmpAnswerText(a, b) {
+  if (a > b) return "左邊比較大";
+  if (a < b) return "右邊比較大";
+  return "一樣大";
+}
 
 const els = {
   childSelect: document.getElementById("childSelect"),
@@ -55,11 +63,11 @@ const els = {
   wrongTop: document.getElementById("wrongTop"),
 };
 
-const STORAGE_KEY = "kids_math_v2";
+const STORAGE_KEY = "kids_math_v3";
 
 let state = {
   child: CHILDREN[0],
-  mode: "add", // add | sub | compare | count | clock
+  mode: "add",
   currentQ: null,
   allowAutoNext: true,
 };
@@ -84,7 +92,6 @@ function blankChildData() {
     pools: { add: [], sub: [], compare: [], count: [], clock: [] },
     used: { add: [], sub: [], compare: [], count: [], clock: [] },
 
-    // 命中率：各模式 attempt / correct
     perf: {
       add: { attempt: 0, correct: 0 },
       sub: { attempt: 0, correct: 0 },
@@ -93,17 +100,13 @@ function blankChildData() {
       clock: { attempt: 0, correct: 0 },
     },
 
-    // 常錯題：qid -> {count, lastPrompt, mode}
     wrongBank: {},
-
-    // 貼紙收藏：stickerId -> count
     stickers: {},
   };
 }
 
 function ensureChildProgress(all, child) {
   if (!all[child]) all[child] = blankChildData();
-  // 補齊欄位（避免你未來更新版本）
   all[child].stats ||= { streak: 0, correct: 0, wrong: 0, stars: 0 };
   all[child].pools ||= { add: [], sub: [], compare: [], count: [], clock: [] };
   all[child].used ||= { add: [], sub: [], compare: [], count: [], clock: [] };
@@ -118,7 +121,6 @@ function getChildData() {
   const all = loadAll();
   const p = ensureChildProgress(all, state.child);
 
-  // 初始化題庫（只要沒有就塞入 build 的題庫引用）
   for (const mode of Object.keys(BUILT_POOLS)) {
     if (!p.pools[mode] || p.pools[mode].length === 0) p.pools[mode] = BUILT_POOLS[mode];
     if (!p.used[mode]) p.used[mode] = [];
@@ -151,16 +153,14 @@ function shuffle(arr) {
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-
 function pickFromPool(pool, used) {
   const available = pool.filter(q => !used.includes(q.id));
   if (available.length === 0) {
-    used.length = 0; // 新一輪
+    used.length = 0;
     return pickFromPool(pool, used);
   }
   return available[randInt(0, available.length - 1)];
 }
-
 function makeNumberChoices(correct, min, max) {
   const set = new Set([correct]);
   while (set.size < 4) set.add(randInt(min, max));
@@ -206,26 +206,22 @@ function buildPools() {
     }
   }
 
-  // 3) 比大小：數字 / 物體點點 / 撲克牌點數
-  // ✅ 加入 "=" 與等量題
-  const cmpAnswer = (a, b) => (a > b ? ">" : a < b ? "<" : "=");
-  const cmpChoices = () => shuffle([">", "<", "="]);
-
-  // 3-1 數字比較（含等量）
+  // 3) 比大小：數字 / 點點 / 撲克牌點數（✅ 四選一）
+  // 3-1 數字
   for (let a = 0; a <= 10; a++) {
     for (let b = 0; b <= 10; b++) {
       pools.compare.push({
         id: `cmp_num_${a}_${b}`,
         type: "mc",
-        prompt: `${a}  ?  ${b}`,
-        answer: cmpAnswer(a, b),
-        makeChoices: cmpChoices,
-        hint: "大的用「>」，小的用「<」，一樣大用「=」。",
+        prompt: `比大小：${a}  和  ${b}\n誰比較大？`,
+        answer: cmpAnswerText(a, b),
+        makeChoices: () => CMP_CHOICES.slice(), // 一定是 4 個
+        hint: "先看哪個數字比較大；一樣大就選「一樣大」。",
       });
     }
   }
 
-  // 3-2 點點比較（含等量）
+  // 3-2 點點
   for (let a = 0; a <= 10; a++) {
     for (let b = 0; b <= 10; b++) {
       const left = a === 0 ? "（沒有點點）" : "●".repeat(a);
@@ -233,25 +229,24 @@ function buildPools() {
       pools.compare.push({
         id: `cmp_dot_${a}_${b}`,
         type: "mc",
-        prompt: `${left}  ?  ${right}`,
-        answer: cmpAnswer(a, b),
-        makeChoices: cmpChoices,
-        hint: "先數左邊幾個、右邊幾個；一樣多就選「=」！",
+        prompt: `比大小：\n${left}\n和\n${right}\n誰比較多？`,
+        answer: cmpAnswerText(a, b),
+        makeChoices: () => CMP_CHOICES.slice(),
+        hint: "先數左邊、再數右邊；一樣多就選「一樣大」。",
       });
     }
   }
 
-  // 3-3 撲克牌點數比較（用 ♠ + 點數，含等量）
-  const cardFace = (n) => String(n); // 0~10 也可顯示，讓 0 當作簡單題
+  // 3-3 撲克牌點數（用 ♠ + 數字）
   for (let a = 0; a <= 10; a++) {
     for (let b = 0; b <= 10; b++) {
       pools.compare.push({
         id: `cmp_card_${a}_${b}`,
         type: "mc",
-        prompt: `♠${cardFace(a)}  ?  ♠${cardFace(b)}`,
-        answer: cmpAnswer(a, b),
-        makeChoices: cmpChoices,
-        hint: "這裡看點數大小：一樣大就選「=」。",
+        prompt: `比大小：♠${a}  和  ♠${b}\n誰比較大？`,
+        answer: cmpAnswerText(a, b),
+        makeChoices: () => CMP_CHOICES.slice(),
+        hint: "看點數大小；一樣就選「一樣大」。",
       });
     }
   }
@@ -326,6 +321,10 @@ function renderChoices(q) {
   els.choicesArea.innerHTML = "";
   const choices = q.makeChoices();
 
+  // ✅ 強制：每題一定要 4 個選項（保險）
+  while (choices.length < 4) choices.push("我不確定");
+  if (choices.length > 4) choices.length = 4;
+
   choices.forEach(choice => {
     const btn = document.createElement("button");
     btn.className = "choice";
@@ -345,19 +344,13 @@ function markUsed(q) {
 
 function recordAttempt({ correct, q }) {
   const { all, p } = getChildData();
-  // perf
   p.perf[state.mode].attempt += 1;
   if (correct) p.perf[state.mode].correct += 1;
 
-  // wrong bank
   if (!correct) {
     const key = q.id;
     if (!p.wrongBank[key]) {
-      p.wrongBank[key] = {
-        count: 1,
-        lastPrompt: q.prompt,
-        mode: state.mode,
-      };
+      p.wrongBank[key] = { count: 1, lastPrompt: q.prompt, mode: state.mode };
     } else {
       p.wrongBank[key].count += 1;
       p.wrongBank[key].lastPrompt = q.prompt;
@@ -370,25 +363,15 @@ function recordAttempt({ correct, q }) {
 function awardStars(onCorrect) {
   if (!onCorrect) return;
   const { all, p } = getChildData();
-
-  // 基礎：答對 +1 星
   let gain = 1;
-
-  // 小小獎勵：連續 5 題 +2 星（讓孩子更有成就感）
   if (p.stats.streak > 0 && p.stats.streak % 5 === 0) gain += 2;
-
   p.stats.stars += gain;
   saveAll(all);
-
-  // 星星提示（不打擾）
-  // 你如果覺得太吵可以拿掉這行
-  // setFeedback(`+${gain}⭐！`, "good");
 }
 
 function submitAnswer(choice) {
   if (!state.currentQ) return;
   const q = state.currentQ;
-
   const isCorrect = (String(choice) === String(q.answer));
 
   markUsed(q);
@@ -399,13 +382,10 @@ function submitAnswer(choice) {
   if (isCorrect) {
     p.stats.correct += 1;
     p.stats.streak += 1;
-
     awardStars(true);
-
     saveAll(all);
     renderStats();
     setFeedback("答對了！太棒了 ⭐", "good");
-
     if (state.allowAutoNext) {
       setTimeout(() => {
         setFeedback("");
@@ -439,7 +419,6 @@ function skipQuestion() {
 function resetChild() {
   const all = loadAll();
   all[state.child] = blankChildData();
-  // 保留題庫引用
   all[state.child].pools = {
     add: BUILT_POOLS.add,
     sub: BUILT_POOLS.sub,
@@ -484,9 +463,7 @@ function renderStickerShop() {
     btn.textContent = canBuy ? "兌換" : "星星不夠";
     btn.disabled = !canBuy;
 
-    btn.addEventListener("click", () => {
-      buySticker(st.id);
-    });
+    btn.addEventListener("click", () => buySticker(st.id));
 
     card.appendChild(btn);
     els.shopList.appendChild(card);
@@ -504,11 +481,10 @@ function renderOwnedStickers() {
     return;
   }
 
-  // 顯示：emoji + 名稱 + 數量
   els.ownedList.innerHTML = "";
   ownedIds
     .map(id => ({ id, count: p.stickers[id], meta: STICKERS.find(s => s.id === id) }))
-    .sort((a, b) => (b.count - a.count))
+    .sort((a, b) => b.count - a.count)
     .forEach(item => {
       const row = document.createElement("div");
       row.className = "ownedItem";
@@ -586,7 +562,7 @@ function renderParentWrongTop() {
   const { p } = getChildData();
   const items = Object.entries(p.wrongBank || {})
     .map(([qid, info]) => ({ qid, ...info }))
-    .sort((a, b) => (b.count - a.count))
+    .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
   if (items.length === 0) {
@@ -598,7 +574,6 @@ function renderParentWrongTop() {
   items.forEach(it => {
     const box = document.createElement("div");
     box.className = "wrongItem";
-
     const prompt = (it.lastPrompt || "").replace(/\n/g, " / ");
     box.innerHTML = `
       <div style="font-weight:900; font-size:14px;">${escapeHtml(prompt)}</div>
@@ -685,9 +660,7 @@ function initChildSelect() {
 }
 
 function initEvents() {
-  els.modeBtns.forEach(btn => {
-    btn.addEventListener("click", () => setMode(btn.dataset.mode));
-  });
+  els.modeBtns.forEach(btn => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
   els.nextBtn.addEventListener("click", nextQuestion);
   els.skipBtn.addEventListener("click", skipQuestion);
   els.resetBtn.addEventListener("click", resetChild);
@@ -703,13 +676,16 @@ function initEvents() {
   });
 
   // 家長區
-  els.parentBtn.addEventListener("click", openParentDashboard);
+  els.parentBtn.addEventListener("click", () => {
+    renderParentAccuracy();
+    renderParentWrongTop();
+    openModal(els.parentModal);
+  });
   els.closeParent.addEventListener("click", () => closeModal(els.parentModal));
   els.parentModal.addEventListener("click", (e) => {
     if (e.target === els.parentModal) closeModal(els.parentModal);
   });
 
-  // Enter 下一題（給大人用）
   document.addEventListener("keydown", (e) => {
     if (e.key === "Enter") nextQuestion();
     if (e.key === "Escape") {
