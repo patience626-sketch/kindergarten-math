@@ -1,10 +1,14 @@
-// kids math v5
-// ✅ 不再把題庫存 localStorage（避免 makeChoices 函式消失）
+// kids math v6
+// ✅ 不使用 q.makeChoices（避免函式遺失造成崩潰）
+// ✅ 題目物件只有純資料：kind / prompt / answer / id / hour
+// ✅ 選項統一由 getChoices(q) 產生 → 永遠四選一
 // ✅ localStorage 只存：used / stats / perf / wrongBank / stickers
-// ✅ 全題型四選一（加法/減法/比大小/數點點/看時鐘）
+// ✅ 啟動時移除舊版可能造成爆炸的 key（v3/v4/v5）
 
 const CHILDREN = ["西瓜", "柚子", "小樂", "阿噗", "安安"];
-const STORAGE_KEY = "kids_math_v5";
+const STORAGE_KEY = "kids_math_v6";
+
+const LEGACY_KEYS = ["kids_math_v3", "kids_math_v4", "kids_math_v5"];
 
 const STICKERS = [
   { id: "st_heart", emoji: "💖", name: "愛心貼", cost: 6 },
@@ -19,7 +23,7 @@ const STICKERS = [
 
 const MODE_LABEL = { add: "加法", sub: "減法", compare: "比大小", count: "數點點", clock: "看時鐘" };
 
-// 比大小：固定 4 選項（孩子看得懂）
+// 比大小固定 4 選項（含等量）
 const CMP_CHOICES = ["左邊比較大", "右邊比較大", "一樣大", "我不確定"];
 function cmpAnswerText(a, b) {
   if (a > b) return "左邊比較大";
@@ -82,16 +86,14 @@ function blankChildData() {
 }
 function ensureChild(all, child) {
   if (!all[child]) all[child] = blankChildData();
-
   all[child].stats ||= { streak: 0, correct: 0, wrong: 0, stars: 0 };
   all[child].used ||= { add: [], sub: [], compare: [], count: [], clock: [] };
   all[child].perf ||= blankChildData().perf;
   all[child].wrongBank ||= {};
   all[child].stickers ||= {};
 
-  // ✅ 兼容舊版：如果曾經存過 pools（壞的），直接丟掉
+  // 防呆：如果舊版有存 pools 或其他怪東西，一律移除
   if (all[child].pools) delete all[child].pools;
-
   return all[child];
 }
 function getChildData() {
@@ -103,7 +105,6 @@ function getChildData() {
 
 // ---------------- UI helpers ----------------
 function setFeedback(text, kind = "muted") {
-  if (!els.feedback) return;
   els.feedback.className = `feedback ${kind}`;
   els.feedback.textContent = text || "";
 }
@@ -126,14 +127,6 @@ function shuffle(arr) {
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-function pickFromPool(pool, usedIds) {
-  const available = pool.filter(q => !usedIds.includes(q.id));
-  if (available.length === 0) {
-    usedIds.length = 0; // 新一輪
-    return pickFromPool(pool, usedIds);
-  }
-  return available[randInt(0, available.length - 1)];
-}
 function makeNumberChoices(correct, min, max) {
   const set = new Set([correct]);
   while (set.size < 4) set.add(randInt(min, max));
@@ -144,8 +137,16 @@ function makeClockChoices(correctHour) {
   while (set.size < 4) set.add(randInt(1, 12));
   return shuffle([...set]);
 }
+function pickFromPool(pool, usedIds) {
+  const available = pool.filter(q => !usedIds.includes(q.id));
+  if (available.length === 0) {
+    usedIds.length = 0; // 新一輪
+    return pickFromPool(pool, usedIds);
+  }
+  return available[randInt(0, available.length - 1)];
+}
 
-// ---------------- question pools (IN MEMORY ONLY) ----------------
+// ---------------- question pools (memory only) ----------------
 function buildPools() {
   const pools = { add: [], sub: [], compare: [], count: [], clock: [] };
 
@@ -153,9 +154,9 @@ function buildPools() {
   for (let a = 0; a <= 10; a++) for (let b = 0; b <= 10; b++) {
     if (a + b <= 10) pools.add.push({
       id: `add_${a}_${b}`,
+      kind: "num",
       prompt: `${a} + ${b} = ?`,
       answer: a + b,
-      makeChoices: () => makeNumberChoices(a + b, 0, 10),
       hint: "把兩邊一起數一數～",
     });
   }
@@ -164,20 +165,20 @@ function buildPools() {
   for (let a = 0; a <= 10; a++) for (let b = 0; b <= a; b++) {
     pools.sub.push({
       id: `sub_${a}_${b}`,
+      kind: "num",
       prompt: `${a} − ${b} = ?`,
       answer: a - b,
-      makeChoices: () => makeNumberChoices(a - b, 0, 10),
       hint: "先拿掉要減的，再數剩下幾個～",
     });
   }
 
-  // compare: number + dots（含等量）
+  // compare: number + dots
   for (let a = 0; a <= 10; a++) for (let b = 0; b <= 10; b++) {
     pools.compare.push({
       id: `cmp_num_${a}_${b}`,
-      prompt: `比大小：${a} 和 ${b}\n選一個：`,
+      kind: "compare",
+      prompt: `比大小：${a} 和 ${b}\n誰比較大？`,
       answer: cmpAnswerText(a, b),
-      makeChoices: () => CMP_CHOICES.slice(),
       hint: "一樣大就選「一樣大」。",
     });
 
@@ -185,9 +186,9 @@ function buildPools() {
     const R = b === 0 ? "（沒有點點）" : "●".repeat(b);
     pools.compare.push({
       id: `cmp_dot_${a}_${b}`,
+      kind: "compare",
       prompt: `比大小：\n${L}\n和\n${R}\n誰比較多？`,
       answer: cmpAnswerText(a, b),
-      makeChoices: () => CMP_CHOICES.slice(),
       hint: "先數左邊、再數右邊。",
     });
   }
@@ -196,9 +197,9 @@ function buildPools() {
   for (let n = 0; n <= 10; n++) {
     pools.count.push({
       id: `count_${n}`,
+      kind: "num",
       prompt: `${"🟣".repeat(n) || "（沒有點點）"}\n\n有幾個？`,
       answer: n,
-      makeChoices: () => makeNumberChoices(n, 0, 10),
       hint: "一個一個慢慢數～",
     });
   }
@@ -207,10 +208,10 @@ function buildPools() {
   for (let h = 1; h <= 12; h++) {
     pools.clock.push({
       id: `clock_${h}`,
+      kind: "clock",
       hour: h,
       prompt: "現在是幾點？",
       answer: h,
-      makeChoices: () => makeClockChoices(h),
       hint: "長針在 12，是整點。",
     });
   }
@@ -218,7 +219,16 @@ function buildPools() {
   Object.keys(pools).forEach(k => shuffle(pools[k]));
   return pools;
 }
-const BUILT_POOLS = buildPools();
+const POOLS = buildPools();
+
+// ✅ 任何來源的題目（就算是舊資料）都用這個產生四選項
+function getChoices(q, mode) {
+  if (mode === "compare") return CMP_CHOICES.slice();
+  if (mode === "clock") return makeClockChoices(Number(q.answer) || Number(q.hour) || 1);
+  // add / sub / count 一律 0~10 的數字選項
+  const ans = Number(q.answer);
+  return makeNumberChoices(isFinite(ans) ? ans : 0, 0, 10);
+}
 
 // ---------------- quiz flow ----------------
 function setMode(mode) {
@@ -259,13 +269,13 @@ function awardStars() {
 
 function newQuestion() {
   const { p } = getChildData();
-  const pool = BUILT_POOLS[state.mode];           // ✅ 永遠用記憶體題庫
+  const pool = POOLS[state.mode];
   const used = p.used[state.mode] || [];
 
   const q = pickFromPool(pool, used);
   state.currentQ = q;
 
-  // render question
+  // 題目區
   if (state.mode === "clock") {
     els.questionArea.innerHTML = `
       <div class="clockWrap">
@@ -277,9 +287,8 @@ function newQuestion() {
     els.questionArea.innerHTML = escapeHtml(q.prompt).replace(/\n/g, "<br>");
   }
 
-  // render choices (ALWAYS 4)
-  let choices = (typeof q.makeChoices === "function") ? q.makeChoices() : [];
-  if (!Array.isArray(choices)) choices = [];
+  // ✅ 選項區：永遠四選一（不再呼叫 makeChoices）
+  let choices = getChoices(q, state.mode);
   while (choices.length < 4) choices.push("我不確定");
   if (choices.length > 4) choices = choices.slice(0, 4);
 
@@ -499,6 +508,13 @@ function escapeHtml(str) {
 }
 
 // ---------------- init ----------------
+function cleanLegacyKeysOnce() {
+  // 只清舊 key（避免舊版 pools/函式遺失害你一直炸）
+  LEGACY_KEYS.forEach(k => {
+    try { localStorage.removeItem(k); } catch {}
+  });
+}
+
 function initChildSelect() {
   els.childSelect.innerHTML = "";
   CHILDREN.forEach(n => {
@@ -538,6 +554,7 @@ function initEvents() {
 }
 
 (function boot() {
+  cleanLegacyKeysOnce();
   initChildSelect();
   initEvents();
   renderStats();
